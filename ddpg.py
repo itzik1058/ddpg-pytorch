@@ -1,11 +1,9 @@
 import actor_critic
 import collections
 import random
-import math
 import torch
 import torch.nn
 import numpy
-import pathlib
 
 
 def copy_weights(source: torch.nn.Module, target: torch.nn.Module, lr: float = 1):
@@ -38,15 +36,15 @@ class DeepDeterministicPolicyGradient:
     def observe(self, state, action, next_state, reward, terminal):
         self.replay_buffer.push(state, action, next_state, reward, not terminal)
 
-    def select_action(self, state, noise_decay=False):
+    def __call__(self, state, noise_decay=False):
         actor_training = self.actor.training
         if actor_training: self.actor.eval()
         with torch.no_grad():
             action = self.actor(torch.tensor(state, dtype=torch.float32, device=self.device)).cpu().numpy()
             if self.training:
                 action += max(self.noise_weight, 0) * self.ou_noise()
-            if noise_decay:
-                self.noise_weight -= self.noise_decay
+                if noise_decay:
+                    self.noise_weight -= self.noise_decay
         if actor_training: self.actor.train()
         return numpy.clip(action, -1, 1)
 
@@ -96,13 +94,15 @@ class DeepDeterministicPolicyGradient:
         self.critic.eval()
         self.critic_target.eval()
 
-    def save(self, path=''):
-        torch.save(self.actor.state_dict(), pathlib.Path(path) / 'actor.torch')
-        torch.save(self.critic.state_dict(), pathlib.Path(path) / 'critic.torch')
+    def save(self, path='ddpg.torch'):
+        torch.save((self.actor.state_dict(), self.critic.state_dict()), path)
+        return self
 
-    def load(self, path=''):
-        self.actor.load_state_dict(torch.load(pathlib.Path(path) / 'actor.torch'))
-        self.critic.load_state_dict(torch.load(pathlib.Path(path) / 'critic.torch'))
+    def load(self, path='ddpg.torch'):
+        actor_state, critic_state = torch.load(path)
+        self.actor.load_state_dict(actor_state)
+        self.critic.load_state_dict(critic_state)
+        return self
 
     def to(self, device):
         self.device = device

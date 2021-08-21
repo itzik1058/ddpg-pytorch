@@ -32,7 +32,7 @@ def train(n_episode=1000, warmup=100, batch_size=64, hidden=128, discount_factor
             if total_steps < warmup:
                 action = numpy.random.uniform(-1, 1, env.action_space.shape)
             else:
-                action = agent.select_action(state)
+                action = agent(state)
             next_state, reward, done, _ = env.step(action)
             if render: env.render()
             agent.observe(state, action, next_state, reward, done)
@@ -55,7 +55,7 @@ def train(n_episode=1000, warmup=100, batch_size=64, hidden=128, discount_factor
             agent.eval()
             done = False
             while not done:
-                action = agent.select_action(state)
+                action = agent(state)
                 next_state, reward, done, _ = env.step(action)
                 if render: env.render()
                 state = next_state
